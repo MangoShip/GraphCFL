@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
+#include <map>
+#include <vector>
+#include <chrono>
 
 using namespace std;
 
@@ -34,25 +38,56 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // TODO - Read through graph file and create a graph with edges
+    // Graph Data that stores all vertices and edges
+    map<string, map<string, string>> graphData;
     
-    // Temporary output (Just outputs input graph and grammar)
+    // Read through graph file then insert to graphData
+    string inputLine;
+    string inputWord;
+    while(getline(graphFile, inputLine)) { // Get a line from file
+        stringstream lineStream(inputLine);
+        vector<string> lineWords;
+        
+        while(getline(lineStream, inputWord, ' ')) { // Transfer each word of line to vector
+            // lineWords[0] = Source Vertex
+            // lineWords[1] = Destination Vertex
+            // lineWords[2] = Edge label
+            lineWords.push_back(inputWord);
+        }
+
+        map<string, string> destData = {{lineWords[1], lineWords[2]}};
+        graphData.insert({lineWords[0], destData});
+    }
+
+    // Measure time for performance result
+    auto startTime = chrono::system_clock::now(); 
+
+    /* TO-DO: Go through Graph Data and apply Grammar rule (CFL-Reachability)
+    *
+    *
+    */
+    
+    auto endTime = chrono::system_clock::now();
+    chrono::duration<double> durationTime = endTime - startTime;
+
+    // Temporary output (outputs graphData)
     ofstream outputFile;
     outputFile.open("../output/output");
     string outputLine;
 
     if(outputFile.is_open()) {
-        outputFile << "Input Graph:\n";
-        while( getline(graphFile, outputLine) ) {
-            outputFile << outputLine;
+        outputFile << "Graph:\n";
+        for(auto it = graphData.begin(); it != graphData.end(); ++it) {
+            outputFile << it->first << ":\n";
+            for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                outputFile << "  " << it2->first << "  " << it2->second << "\n";
+            }
         }
-        outputFile << "\n\n";
-        outputFile << "Input Grammar:\n";
-        while( getline(grammarFile, outputLine) ) {
-            outputFile << outputLine;
-        } 
     }
 
+    outputFile << "\n";
+    outputFile << "Elapsed time: " << durationTime.count() << "s";
     outputFile.close();
+    
     return 0;
 }

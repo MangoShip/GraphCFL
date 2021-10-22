@@ -1,5 +1,7 @@
-Input Graph:
-0 1 a1 2 b
+Graph:
+0:
+  1  a
+1:
+  2  b
 
-Input Grammar:
-c a b
+Elapsed time: 9e-07s
