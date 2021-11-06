@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <chrono>
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Graph Data that stores all vertices and edges
-    map<string, map<string, string>> graphData;
+    map<string, vector<pair<string, string>>> graphData;
     
     // Read through graph file then insert to graphData
     string inputLine;
@@ -55,16 +56,82 @@ int main(int argc, char *argv[]) {
             lineWords.push_back(inputWord);
         }
 
-        map<string, string> destData = {{lineWords[1], lineWords[2]}};
-        graphData.insert({lineWords[0], destData});
+        pair<string, string> vertexInfo = {lineWords[0], lineWords[1]};
+        string edgeLabel = lineWords[2];
+
+        // Remove '\n' from string
+        if(edgeLabel.length() > 1) {
+            edgeLabel = edgeLabel.substr(0, 1);
+        } 
+        graphData[edgeLabel].push_back(vertexInfo);
+    }
+
+    // Grammar Data that stores all grammar rules
+    map<string, vector<pair<string, string>>> grammarData;
+
+    // Read through grammar file then insert to grammarData
+    while(getline(grammarFile, inputLine)) { // Get a line from file
+        stringstream lineStream(inputLine);
+        vector<string> lineWords;
+        
+        while(getline(lineStream, inputWord, ' ')) { // Transfer each word of line to vector
+            // lineWords[0] = Left hand symbol
+            // lineWords[1] = Right hand first symbol
+            // lineWords[2] = Right hand second symbol
+            lineWords.push_back(inputWord);
+        }
+
+        string rightFirstSymbol = lineWords[1];
+        string rightSecondSymbol = lineWords[2];
+
+        // Remove '\n' from string
+        if(rightSecondSymbol.length() > 1) {
+            rightSecondSymbol = rightSecondSymbol.substr(0, 1);
+        } 
+
+        pair<string, string> grammarInfo = {rightSecondSymbol, lineWords[0]};
+
+        grammarData[rightFirstSymbol].push_back(grammarInfo);
     }
 
     // Measure time for performance result
     auto startTime = chrono::system_clock::now(); 
 
-    /* TO-DO: Go through Graph Data and apply Grammar rule (CFL-Reachability)
-    *
-    *
+    // Go through grammarData and apply each grammar to graphData
+    for(auto grammarIt = grammarData.begin(); grammarIt != grammarData.end(); grammarIt++) {
+        string rightFirstSymbol = grammarIt->first;
+
+        for(int i = 0; i < (grammarIt->second).size(); i++) {
+            pair<string, string> grammarInfo =  (grammarIt->second)[i];
+            string rightSecondSymbol = grammarInfo.first;
+            string leftHandSymbol = grammarInfo.second;
+
+            vector<pair<string, string>> firstGraphInfo = graphData.at(rightFirstSymbol);
+            vector<pair<string, string>> secondGraphInfo = graphData.at(rightSecondSymbol);
+
+            for(int j = 0; j < firstGraphInfo.size(); j++) {
+                pair<string, string> firstVertexInfo = firstGraphInfo[j];
+                string firstSourceVertex = firstVertexInfo.first;
+                string firstDestVertex = firstVertexInfo.second;
+
+                for(int m = 0; m < secondGraphInfo.size(); m++) {
+                    pair<string, string> secondVertexInfo = secondGraphInfo[m];
+                    string secondSourceVertex = secondVertexInfo.first;
+                    string secondDestVertex = secondVertexInfo.second;
+
+                    if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
+                        pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
+                        graphData[leftHandSymbol].push_back(newVertexInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+    1. Easy to paralleize?
+    2. Avoid redundancy
+    3. Locality
     */
     
     auto endTime = chrono::system_clock::now();
@@ -79,8 +146,9 @@ int main(int argc, char *argv[]) {
         outputFile << "Graph:\n";
         for(auto it = graphData.begin(); it != graphData.end(); ++it) {
             outputFile << it->first << ":\n";
-            for(auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-                outputFile << "  " << it2->first << "  " << it2->second << "\n";
+            for(int i = 0; i < it->second.size(); i++) {
+                pair<string, string> tempPair = (it->second)[i];
+                outputFile << "  " << tempPair.first << "  " << tempPair.second << "\n";
             }
         }
     }

@@ -1,7 +1,9 @@
 Graph:
-0:
-  1  a
-1:
-  2  b
+a:
+  0  1
+b:
+  1  2
+c:
+  0  2
 
-Elapsed time: 9e-07s
+Elapsed time: 3.5e-06s
