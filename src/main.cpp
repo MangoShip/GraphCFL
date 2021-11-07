@@ -10,6 +10,17 @@
 
 using namespace std;
 
+bool checkEdgeExists(map<string, vector<pair<string, string>>> graphData, string sourceVertex, string destVertex) {
+    for(auto it = graphData.begin(); it != graphData.end(); it++) {
+        for(int i = 0; i < (it->second).size(); i++) {
+            if((it->second)[i].first == sourceVertex && (it->second)[i].second == destVertex) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 int main(int argc, char *argv[]) {
 
     // Check initial argument 
@@ -98,6 +109,13 @@ int main(int argc, char *argv[]) {
     auto startTime = chrono::system_clock::now(); 
 
     // Go through grammarData and apply each grammar to graphData
+    
+    /* NOTES
+    1. Easy to paralleize
+    2. Avoid redundancy (Adding check mechanism)
+    3. Locality (Accessing elements that are close to each other is faster than being separated away)
+    */
+
     for(auto grammarIt = grammarData.begin(); grammarIt != grammarData.end(); grammarIt++) {
         string rightFirstSymbol = grammarIt->first;
 
@@ -106,8 +124,13 @@ int main(int argc, char *argv[]) {
             string rightSecondSymbol = grammarInfo.first;
             string leftHandSymbol = grammarInfo.second;
 
-            vector<pair<string, string>> firstGraphInfo = graphData.at(rightFirstSymbol);
-            vector<pair<string, string>> secondGraphInfo = graphData.at(rightSecondSymbol);
+            // Current grammar cannot be applied because one of the edge labels doesn't exist in graph
+            if(graphData.find(rightFirstSymbol) == graphData.end() || graphData.find(rightSecondSymbol) == graphData.end()) {
+                continue;
+            }
+
+            vector<pair<string, string>> firstGraphInfo = graphData[rightFirstSymbol];
+            vector<pair<string, string>> secondGraphInfo = graphData[rightSecondSymbol];
 
             for(int j = 0; j < firstGraphInfo.size(); j++) {
                 pair<string, string> firstVertexInfo = firstGraphInfo[j];
@@ -120,20 +143,17 @@ int main(int argc, char *argv[]) {
                     string secondDestVertex = secondVertexInfo.second;
 
                     if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
-                        pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
-                        graphData[leftHandSymbol].push_back(newVertexInfo);
+                        // Check if an edge from firstSourceVertex to secondDestVertex already exists
+                        if(!checkEdgeExists(graphData, firstSourceVertex, secondDestVertex)) {
+                            pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
+                            graphData[leftHandSymbol].push_back(newVertexInfo);
+                        }
                     }
                 }
             }
         }
     }
 
-    /*
-    1. Easy to paralleize?
-    2. Avoid redundancy
-    3. Locality
-    */
-    
     auto endTime = chrono::system_clock::now();
     chrono::duration<double> durationTime = endTime - startTime;
 
