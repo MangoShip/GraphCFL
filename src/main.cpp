@@ -108,51 +108,60 @@ int main(int argc, char *argv[]) {
     // Measure time for performance result
     auto startTime = chrono::system_clock::now(); 
 
-    // Go through grammarData and apply each grammar to graphData
-    
     /* NOTES
     1. Easy to paralleize
     2. Avoid redundancy (Adding check mechanism)
     3. Locality (Accessing elements that are close to each other is faster than being separated away)
     */
 
-    for(auto grammarIt = grammarData.begin(); grammarIt != grammarData.end(); grammarIt++) {
+    // If a new edge has been added, then repeat the traverse of grammar rules 
+    // to see if any of grammar rules can be applied with the new edge
+    bool newEdgeAdded = true;
+
+    // Go through grammarData and apply each grammar to graphData
+    while (newEdgeAdded) {
+        newEdgeAdded = false;
+        for(auto grammarIt = grammarData.begin(); grammarIt != grammarData.end(); grammarIt++) {
         string rightFirstSymbol = grammarIt->first;
 
-        for(int i = 0; i < (grammarIt->second).size(); i++) {
-            pair<string, string> grammarInfo =  (grammarIt->second)[i];
-            string rightSecondSymbol = grammarInfo.first;
-            string leftHandSymbol = grammarInfo.second;
+            for(int i = 0; i < (grammarIt->second).size(); i++) {
+                pair<string, string> grammarInfo =  (grammarIt->second)[i];
+                string rightSecondSymbol = grammarInfo.first;
+                string leftHandSymbol = grammarInfo.second;
 
-            // Current grammar cannot be applied because one of the edge labels doesn't exist in graph
-            if(graphData.find(rightFirstSymbol) == graphData.end() || graphData.find(rightSecondSymbol) == graphData.end()) {
-                continue;
-            }
+                // Current grammar cannot be applied because one of the edge labels doesn't exist in graph
+                if(graphData.find(rightFirstSymbol) == graphData.end() || graphData.find(rightSecondSymbol) == graphData.end()) {
+                    continue;
+                }
 
-            vector<pair<string, string>> firstGraphInfo = graphData[rightFirstSymbol];
-            vector<pair<string, string>> secondGraphInfo = graphData[rightSecondSymbol];
+                vector<pair<string, string>> firstGraphInfo = graphData[rightFirstSymbol];
+                vector<pair<string, string>> secondGraphInfo = graphData[rightSecondSymbol];
 
-            for(int j = 0; j < firstGraphInfo.size(); j++) {
-                pair<string, string> firstVertexInfo = firstGraphInfo[j];
-                string firstSourceVertex = firstVertexInfo.first;
-                string firstDestVertex = firstVertexInfo.second;
+                for(int j = 0; j < firstGraphInfo.size(); j++) {
+                    pair<string, string> firstVertexInfo = firstGraphInfo[j];
+                    string firstSourceVertex = firstVertexInfo.first;
+                    string firstDestVertex = firstVertexInfo.second;
 
-                for(int m = 0; m < secondGraphInfo.size(); m++) {
-                    pair<string, string> secondVertexInfo = secondGraphInfo[m];
-                    string secondSourceVertex = secondVertexInfo.first;
-                    string secondDestVertex = secondVertexInfo.second;
+                    for(int m = 0; m < secondGraphInfo.size(); m++) {
+                        pair<string, string> secondVertexInfo = secondGraphInfo[m];
+                        string secondSourceVertex = secondVertexInfo.first;
+                        string secondDestVertex = secondVertexInfo.second;
 
-                    if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
-                        // Check if an edge from firstSourceVertex to secondDestVertex already exists
-                        if(!checkEdgeExists(graphData, firstSourceVertex, secondDestVertex)) {
-                            pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
-                            graphData[leftHandSymbol].push_back(newVertexInfo);
+                        if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
+                            // Check if an edge from firstSourceVertex to secondDestVertex already exists
+                            if(!checkEdgeExists(graphData, firstSourceVertex, secondDestVertex)) {
+                                pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
+                                graphData[leftHandSymbol].push_back(newVertexInfo);
+                                newEdgeAdded = true;
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    
 
     auto endTime = chrono::system_clock::now();
     chrono::duration<double> durationTime = endTime - startTime;
