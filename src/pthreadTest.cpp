@@ -1,3 +1,5 @@
+// THIS IS FOR TESTING PTHREAD, NOT BEING USED IN THE MAIN
+
 #include <stdio.h>
 #include <iostream>
 #include <string>
