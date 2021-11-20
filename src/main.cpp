@@ -8,10 +8,13 @@
 #include <vector>
 #include <chrono>
 #include <pthread.h>
+#include "Barrier.h"
 
 using namespace std;
 
 #define NUM_THREADS 4
+
+barrier_object B;
 
 // Global variable to indicate if a new variable has been added
 bool newEdgeAdded = true;
@@ -19,8 +22,8 @@ bool newEdgeAdded = true;
 // Argument to be passed to thread function
 struct threadArg {
     int threadId;
-    map<string, vector<pair<string, string>>> graphData;
-    map<string, vector<pair<string, string>>> grammarData;
+    map<string, vector<pair<string, string>>> *graphData;
+    map<string, vector<pair<string, string>>> *grammarData;
 };
 
 // Helper function for checking if edge exists in graphData
@@ -42,52 +45,68 @@ void* traverseGrammar(void *arg) {
 
     // Retrieve variables from threadArg
     int threadId = threadArg->threadId;
-    map<string, vector<pair<string, string>>> graphData = threadArg->graphData;
-    map<string, vector<pair<string, string>>> grammarData = threadArg->grammarData;
+    int currentId = threadId;
+    map<string, vector<pair<string, string>>> *graphData = threadArg->graphData;
+    map<string, vector<pair<string, string>>> *grammarData = threadArg->grammarData;
 
-    // Go through grammarData and apply each grammar to graphData
-    /*while (newEdgeAdded) {
-        newEdgeAdded = false;
-        for(auto grammarIt = grammarData.begin(); grammarIt != grammarData.end(); grammarIt++) {
+    // Variables for assigning chunk of grammarData for each thread
+    int chunkSize = ((*grammarData).size() + (NUM_THREADS - 1)) / NUM_THREADS;
+    int startIndex = chunkSize * threadId;
+    int endIndex = min(startIndex + chunkSize, (int)(*grammarData).size());
+
+    // NUM_THREADS is greater than size of grammarData
+    // Current thread won't be used
+    if (startIndex >= endIndex) { 
+        pthread_exit(NULL);
+    }
+
+    //cout << "ID: " << threadId << " start: " << startIndex << " end: " << endIndex << endl;
+
+    for (int i = startIndex; i < endIndex; i++) {
+        auto grammarIt = (*grammarData).begin();
+        advance(grammarIt, i);
+
         string rightFirstSymbol = grammarIt->first;
 
-            for(int i = 0; i < (grammarIt->second).size(); i++) {
-                pair<string, string> grammarInfo =  (grammarIt->second)[i];
-                string rightSecondSymbol = grammarInfo.first;
-                string leftHandSymbol = grammarInfo.second;
+        for(int i = 0; i < (grammarIt->second).size(); i++) {
+            pair<string, string> grammarInfo =  (grammarIt->second)[i];
+            string rightSecondSymbol = grammarInfo.first;
+            string leftHandSymbol = grammarInfo.second;
 
-                // Current grammar cannot be applied because one of the edge labels doesn't exist in graph
-                if(graphData.find(rightFirstSymbol) == graphData.end() || graphData.find(rightSecondSymbol) == graphData.end()) {
-                    continue;
-                }
+            // Current grammar cannot be applied because one of the edge labels doesn't exist in graph
+            if((*graphData).find(rightFirstSymbol) == (*graphData).end() || (*graphData).find(rightSecondSymbol) == (*graphData).end()) {
+                continue;
+            }
 
-                vector<pair<string, string>> firstGraphInfo = graphData[rightFirstSymbol];
-                vector<pair<string, string>> secondGraphInfo = graphData[rightSecondSymbol];
+            vector<pair<string, string>> firstGraphInfo = (*graphData)[rightFirstSymbol];
+            vector<pair<string, string>> secondGraphInfo = (*graphData)[rightSecondSymbol];
 
-                for(int j = 0; j < firstGraphInfo.size(); j++) {
-                    pair<string, string> firstVertexInfo = firstGraphInfo[j];
-                    string firstSourceVertex = firstVertexInfo.first;
-                    string firstDestVertex = firstVertexInfo.second;
+            for(int j = 0; j < firstGraphInfo.size(); j++) {
+                pair<string, string> firstVertexInfo = firstGraphInfo[j];
+                string firstSourceVertex = firstVertexInfo.first;
+                string firstDestVertex = firstVertexInfo.second;
 
-                    for(int m = 0; m < secondGraphInfo.size(); m++) {
-                        pair<string, string> secondVertexInfo = secondGraphInfo[m];
-                        string secondSourceVertex = secondVertexInfo.first;
-                        string secondDestVertex = secondVertexInfo.second;
+                for(int m = 0; m < secondGraphInfo.size(); m++) {
+                    pair<string, string> secondVertexInfo = secondGraphInfo[m];
+                    string secondSourceVertex = secondVertexInfo.first;
+                    string secondDestVertex = secondVertexInfo.second;
 
-                        if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
-                            // Check if an edge from firstSourceVertex to secondDestVertex already exists
-                            if(!checkEdgeExists(graphData, firstSourceVertex, secondDestVertex)) {
-                                pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
-                                graphData[leftHandSymbol].push_back(newVertexInfo);
-                                newEdgeAdded = true;
-                            }
+                    if(firstDestVertex == secondSourceVertex) { // Current grammar rule can be applied.
+                        // Check if an edge from firstSourceVertex to secondDestVertex already exists
+                        if(!checkEdgeExists((*graphData), firstSourceVertex, secondDestVertex)) {
+                            pair<string, string> newVertexInfo = {firstSourceVertex, secondDestVertex};
+                            (*graphData)[leftHandSymbol].push_back(newVertexInfo);
+                            newEdgeAdded = true;
                         }
                     }
                 }
             }
         }
-    }*/
+    }
 
+    // This thread has finished traversing through its chunk
+    // Now wait for other threads to finish (Barrier)
+    //B.barrier(threadId);
 
     pthread_exit(NULL);
 }
@@ -187,6 +206,9 @@ int main(int argc, char *argv[]) {
     // Initialize and set thread joinable
     pthread_attr_init(&threadAttr);
     pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_JOINABLE);
+
+    // Initialize barrier object
+    B.init(NUM_THREADS);
     
     // Measure time for performance result
     auto startTime = chrono::system_clock::now(); 
@@ -197,31 +219,36 @@ int main(int argc, char *argv[]) {
     3. Locality (Accessing elements that are close to each other is faster than being separated away)
     */
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        // Initialize thread argument
-        threadArgs[i].threadId = i;
-        threadArgs[i].graphData = graphData;
-        threadArgs[i].grammarData = grammarData;
+    while (newEdgeAdded) {
+        newEdgeAdded = false;
 
-        // Call thread function
-        threadResult = pthread_create(&threads[i], &threadAttr, traverseGrammar, (void *)&threadArgs[i]);
-        if (threadResult != 0) {
-            cout << "Error in creating thread, " << threads[i] << endl;
-            exit(-1);
+        for (int i = 0; i < NUM_THREADS; i++) {
+            // Initialize thread argument
+            threadArgs[i].threadId = i;
+            threadArgs[i].graphData = &graphData;
+            threadArgs[i].grammarData = &grammarData;
+
+            // Call thread function
+            threadResult = pthread_create(&threads[i], &threadAttr, traverseGrammar, &threadArgs[i]);
+            if (threadResult != 0) {
+                cout << "Error in creating thread, " << threads[i] << endl;
+                exit(-1);
+            }
+        }
+
+        // Thread function has been completed
+        pthread_attr_destroy(&threadAttr);
+
+        // Join threads
+        for (int i = 0; i < NUM_THREADS; i++) {
+            threadResult = pthread_join(threads[i], &status);
+            if (threadResult != 0) {
+                cout << "Error in joining thread, " << threads[i] << endl;
+                exit(-1);
+            }
         }
     }
-
-    pthread_attr_destroy(&threadAttr);
-
-    // Join threads
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threadResult = pthread_join(threads[i], &status);
-        if (threadResult != 0) {
-            cout << "Error in joining thread, " << threads[i] << endl;
-            exit(-1);
-        }
-    }
-
+    
     // Capture end time
     auto endTime = chrono::system_clock::now();
     chrono::duration<double> durationTime = endTime - startTime;
