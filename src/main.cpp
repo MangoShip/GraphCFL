@@ -307,7 +307,7 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            // STEP 2: Go back to graph, then create a new edge 
+            // STEP 2: Go through first and second symbol edge arrays, then create a new edge 
             for (int i = 0; i < NUM_THREADS; i++) {
                 // Initialize thread argument
                 createThreadArgs[i].threadId = i;
