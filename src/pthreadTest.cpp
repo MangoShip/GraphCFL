@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#define NUM_THREADS 2
+#define NUM_THREADS 1
 
 struct threadArg {
     int threadId;
