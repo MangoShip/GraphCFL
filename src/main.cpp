@@ -35,7 +35,7 @@ struct traverseThreadArg {
     vector<graphEdge> *graphData;
     vector<graphEdge> *firstSymbolEdge;
     vector<graphEdge> *secondSymbolEdge;
-    string grammarData;
+    string currGrammarRule;
 }; 
 
 // Argument to be passed to create thread function
@@ -46,7 +46,7 @@ struct createThreadArg {
     vector<graphEdge> *newGraphData;
     vector<graphEdge> *firstSymbolEdge;
     vector<graphEdge> *secondSymbolEdge;
-    string grammarData;
+    string currGrammarRule;
 };
 
 // Helper function for checking if edge exists in graphData
@@ -71,9 +71,9 @@ void* traverseGraph(void *arg) {
     vector<graphEdge> *graphData = threadArg->graphData;
     vector<graphEdge> *firstSymbolEdge = threadArg->firstSymbolEdge;
     vector<graphEdge> *secondSymbolEdge = threadArg->secondSymbolEdge;
-    string grammarData = threadArg->grammarData;
+    string currGrammarRule = threadArg->currGrammarRule;
 
-    // Variables for assigning chunk of grammarData for each thread
+    // Variables for assigning chunk of graphData for each thread
     int chunkSize = ((*graphData).size() + (NUM_THREADS - 1)) / NUM_THREADS;
     int startIndex = chunkSize * threadId;
     int endIndex = min(startIndex + chunkSize, (int)(*graphData).size());
@@ -88,9 +88,9 @@ void* traverseGraph(void *arg) {
     for (int i = startIndex; i < endIndex; i++) {
 
         string edgeLabel = (*graphData)[i].edgeLabel;
-        string leftHandSymbol = grammarData.substr(0, 1);
-        string rightHandFirstSymbol = grammarData.substr(1, 1);
-        string rightHandSecondSymbol = grammarData.substr(2, 1);
+        string leftHandSymbol = currGrammarRule.substr(0, 1);
+        string rightHandFirstSymbol = currGrammarRule.substr(1, 1);
+        string rightHandSecondSymbol = currGrammarRule.substr(2, 1);
 
         if(edgeLabel == rightHandFirstSymbol) {
             (*firstSymbolEdge).push_back((*graphData)[i]);
@@ -119,9 +119,9 @@ void* createNewEdge (void *arg) {
     vector<graphEdge> *newGraphData = threadArg->newGraphData;
     vector<graphEdge> *firstSymbolEdge = threadArg->firstSymbolEdge;
     vector<graphEdge> *secondSymbolEdge = threadArg->secondSymbolEdge;
-    string grammarData = threadArg->grammarData;
+    string currGrammarRule = threadArg->currGrammarRule;
 
-    // Variables for assigning chunk of grammarData for each thread
+    // Variables for assigning chunk of graphData for each thread
     int chunkSize = ((*firstSymbolEdge).size() + (NUM_THREADS - 1)) / NUM_THREADS;
     int startIndex = chunkSize * threadId;
     int endIndex = min(startIndex + chunkSize, (int)(*firstSymbolEdge).size());
@@ -139,7 +139,7 @@ void* createNewEdge (void *arg) {
         for (int j = 0; j < (*secondSymbolEdge).size(); j++) {
             if ((*firstSymbolEdge)[i].destVertex == (*secondSymbolEdge)[j].sourceVertex) {
                 graphEdge newEdge;
-                newEdge.edgeLabel = grammarData.substr(0, 1);
+                newEdge.edgeLabel = currGrammarRule.substr(0, 1);
                 newEdge.sourceVertex = (*firstSymbolEdge)[i].sourceVertex;
                 newEdge.destVertex = (*secondSymbolEdge)[j].destVertex;
 
@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {
                 traverseThreadArgs[i].graphData = &graphData;
                 traverseThreadArgs[i].firstSymbolEdge = &firstSymbolEdges;
                 traverseThreadArgs[i].secondSymbolEdge = &secondSymbolEdges;
-                traverseThreadArgs[i].grammarData = grammarIt;
+                traverseThreadArgs[i].currGrammarRule = grammarIt;
 
                 // Call thread function
                 threadResult = pthread_create(&threads[i], &threadAttr, traverseGraph, &traverseThreadArgs[i]);
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
                 createThreadArgs[i].newGraphData = &newGraphData;
                 createThreadArgs[i].firstSymbolEdge = &firstSymbolEdges;
                 createThreadArgs[i].secondSymbolEdge = &secondSymbolEdges;
-                createThreadArgs[i].grammarData = grammarIt;
+                createThreadArgs[i].currGrammarRule = grammarIt;
 
                 // Call thread function
                 threadResult = pthread_create(&threads[i], &threadAttr, createNewEdge, &createThreadArgs[i]);
