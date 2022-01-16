@@ -20,7 +20,7 @@ using namespace std;
 bool newEdgeAdded = true;
 
 // Global variable to keep tracking how many edges have been added
-int numEdgeAdded = 0;
+int numTotalEdgesAdded = 0;
 
 // Variable that stores information of graph edge
 struct graphEdge {
@@ -41,7 +41,7 @@ struct traverseThreadArg {
 // Argument to be passed to create thread function
 struct createThreadArg {
     int threadId;
-    int numThreadsAdded;
+    int numEdgesAdded;
     vector<graphEdge> *graphData;
     vector<graphEdge> *newGraphData;
     vector<graphEdge> *firstSymbolEdge;
@@ -146,7 +146,7 @@ void* createNewEdge (void *arg) {
                 if(!checkEdgeExists((*graphData), newEdge)) {
                     (*newGraphData).push_back(newEdge);
                     newEdgeAdded = true;
-                    threadArg->numThreadsAdded++;
+                    threadArg->numEdgesAdded++;
                 };
             }
         }
@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
     
     while (newEdgeAdded) {
         cout << "Loop #: " << loopCount  << endl;
-        cout << "New Edges Added: " << numEdgeAdded << endl;
+        cout << "New Edges Added: " << numTotalEdgesAdded << endl;
         newEdgeAdded = false;
 
         for(auto grammarIt : grammarData) {
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < NUM_THREADS; i++) {
                 // Initialize thread argument
                 createThreadArgs[i].threadId = i;
-                createThreadArgs[i].numThreadsAdded = 0;
+                createThreadArgs[i].numEdgesAdded = 0;
                 createThreadArgs[i].graphData = &graphData;
                 createThreadArgs[i].newGraphData = &newGraphData;
                 createThreadArgs[i].firstSymbolEdge = &firstSymbolEdges;
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]) {
             }
 
             for(int i = 0; i < NUM_THREADS; i++) {
-                numEdgeAdded += createThreadArgs[i].numThreadsAdded;
+                numTotalEdgesAdded += createThreadArgs[i].numEdgesAdded;
             }
 
             graphData = newGraphData;
@@ -355,7 +355,7 @@ int main(int argc, char *argv[]) {
     outputFile.open("../output/output");
     string outputLine;
 
-    outputFile << "Number of Edge Added: " << numEdgeAdded << "\n";
+    outputFile << "Number of Edge Added: " << numTotalEdgesAdded << "\n";
     outputFile << "Elapsed time: " << durationTime.count() << "s";
     outputFile << "\n";
     
