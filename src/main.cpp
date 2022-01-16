@@ -121,7 +121,7 @@ void* createNewEdge (void *arg) {
     vector<graphEdge> *secondSymbolEdge = threadArg->secondSymbolEdge;
     string currGrammarRule = threadArg->currGrammarRule;
 
-    // Variables for assigning chunk of graphData for each thread
+    // Variables for assigning chunk of firstSymbolEdge for each thread
     int chunkSize = ((*firstSymbolEdge).size() + (NUM_THREADS - 1)) / NUM_THREADS;
     int startIndex = chunkSize * threadId;
     int endIndex = min(startIndex + chunkSize, (int)(*firstSymbolEdge).size());
