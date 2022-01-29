@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <chrono>
 #include <pthread.h>
@@ -23,14 +23,20 @@ bool newEdgeAdded = true;
 int numTotalEdgesAdded = 0;
 
 // Variable that stores information of graph edge
-struct graphEdge {
+struct GraphEdge {
     string edgeLabel;
-    int sourceVertex;
-    int destVertex;
+    int sourceVertexLabel;
+    int destVertexLabel;
+};
+
+// Variable that stores information of graph vertex
+struct GraphVertex {
+    vector<GraphEdge> graphEdges;
+    int vertexLabel;
 };
 
 // Argument to be passed to traverse thread function
-struct traverseThreadArg {
+/*struct traverseThreadArg {
     int threadId;
     vector<graphEdge> *graphData;
     vector<graphEdge> *firstSymbolEdge;
@@ -47,14 +53,14 @@ struct createThreadArg {
     vector<graphEdge> *firstSymbolEdge;
     vector<graphEdge> *secondSymbolEdge;
     string currGrammarRule;
-};
+};*/
 
 // Helper function for checking if edge exists in graphData
-bool checkEdgeExists(vector<graphEdge> graphData, graphEdge newEdge) {
-    for (graphEdge edge : graphData) {
-        if (edge.edgeLabel == newEdge.edgeLabel &&
-            edge.sourceVertex == newEdge.sourceVertex &&
-            edge.destVertex == newEdge.destVertex) {
+bool checkEdgeExists(GraphVertex currGraphVertex, GraphEdge newEdge) {
+    for (GraphEdge graphEdge : currGraphVertex.graphEdges) {
+        if (graphEdge.edgeLabel == newEdge.edgeLabel &&
+            graphEdge.sourceVertexLabel == newEdge.sourceVertexLabel &&
+            graphEdge.destVertexLabel == newEdge.destVertexLabel) {
                 return true;
             }
     }
@@ -62,7 +68,7 @@ bool checkEdgeExists(vector<graphEdge> graphData, graphEdge newEdge) {
 }
 
 // Thread function for traversing graph
-void* traverseGraph(void *arg) {
+/*void* traverseGraph(void *arg) {
     struct traverseThreadArg *threadArg;
     threadArg = (struct traverseThreadArg *) arg;
 
@@ -152,7 +158,7 @@ void* createNewEdge (void *arg) {
         }
     }
     pthread_exit(NULL);
-}
+}*/
 
 int main(int argc, char *argv[]) {
 
@@ -184,7 +190,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Graph Data that stores all vertices and edges
-    vector<graphEdge> graphData;
+    unordered_map<int, GraphVertex> graphData;
     
     // Read through graph file then insert to graphData
     string inputLine;
@@ -205,10 +211,21 @@ int main(int argc, char *argv[]) {
             lineWords.push_back(inputWord);
         }
 
-        graphEdge newGraphEdge;
-        newGraphEdge.sourceVertex = stoi(lineWords[0]);
-        newGraphEdge.destVertex = stoi(lineWords[1]);
+        int vertexLabel = stoi(lineWords[0]);
+        auto graphIt = graphData.find(vertexLabel);
+        
+        // Check if vertex already exists in graphData
+        if (graphIt == graphData.end()) { // not found
+            GraphVertex newGraphVertex;
+            newGraphVertex.vertexLabel = vertexLabel;
+            graphData[vertexLabel] = newGraphVertex;
+            graphIt = graphData.find(vertexLabel);
+        }
 
+        GraphEdge newGraphEdge;
+        newGraphEdge.sourceVertexLabel = vertexLabel;
+        newGraphEdge.destVertexLabel = stoi(lineWords[1]);
+        
         string edgeLabel = lineWords[2];
         // Remove '\n' from string
         if(edgeLabel.length() > 1) {
@@ -216,11 +233,12 @@ int main(int argc, char *argv[]) {
         } 
         newGraphEdge.edgeLabel = edgeLabel;
 
-        graphData.push_back(newGraphEdge);
+        graphIt->second.graphEdges.push_back(newGraphEdge);
     }
 
     // Grammar Data that stores all grammar rules
-    vector<string> grammarData;
+    //vector<string> grammarData;
+    unordered_map<string, unordered_map<string, string>> grammarData;
 
     // Read through grammar file then insert to grammarData
     while(getline(grammarFile, inputLine)) { // Get a line from file
@@ -228,7 +246,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         stringstream lineStream(inputLine);
-        string lineWords = "";
+        vector<string> lineWords;
         
         while(getline(lineStream, inputWord, '\t')) { // Transfer each word of line to vector
             // lineWords[0] = Left hand symbol
@@ -237,24 +255,34 @@ int main(int argc, char *argv[]) {
             if (inputWord.length() > 1) {
                 inputWord = inputWord.substr(0, 1);
             }
-            lineWords += inputWord;
+            lineWords.push_back(inputWord);
         }
 
-        grammarData.push_back(lineWords);
+        auto grammarIt = grammarData.find(lineWords[1]);
+
+        // Check if fist time adding grammar rule with this right hand first symbol
+        if(grammarIt == grammarData.end()) { // First time
+            unordered_map<string, string> grammarInfo;
+            grammarInfo[lineWords[2]] = lineWords[0];
+            grammarData[lineWords[1]] = grammarInfo;
+        }
+        else {
+            (grammarIt->second)[lineWords[2]] = lineWords[0];
+        }
     }
 
     // Create threads and attribute varaibles
-    pthread_t threads[NUM_THREADS];
-    pthread_attr_t threadAttr;
+    //pthread_t threads[NUM_THREADS];
+    //pthread_attr_t threadAttr;
 
-    int threadResult;
-    void *status; // For debugging
-    struct traverseThreadArg traverseThreadArgs[NUM_THREADS];
-    struct createThreadArg createThreadArgs[NUM_THREADS];
+    //int threadResult;
+    //void *status; // For debugging
+    //struct traverseThreadArg traverseThreadArgs[NUM_THREADS];
+    //struct createThreadArg createThreadArgs[NUM_THREADS];
 
     // Initialize and set thread joinable
-    pthread_attr_init(&threadAttr);
-    pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_JOINABLE);
+    //pthread_attr_init(&threadAttr);
+    //pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_JOINABLE);
 
     // Initialize barrier object
     //B.init(NUM_THREADS);
@@ -274,7 +302,59 @@ int main(int argc, char *argv[]) {
         cout << "New Edges Added: " << numTotalEdgesAdded << endl;
         newEdgeAdded = false;
 
-        for(auto grammarIt : grammarData) {
+        // STEP 1: Traverse through graph
+        for(auto graphIt : graphData) {
+            
+            // STEP 2: Go through vertex's edges
+            for(auto graphEdge : graphIt.second.graphEdges) {
+                
+                // STEP 3: Check if edgeLabel exists in grammarData
+                // If yes, this vertex could satisfy one of grammar rules.
+                // If not, move on to next graphEdge.
+                auto checkGrammarData = grammarData.find(graphEdge.edgeLabel);
+                if(checkGrammarData != grammarData.end()){
+                    unordered_map<string, string> currGrammarRule = checkGrammarData->second;
+
+                    // STEP 4: Check if graphEdges' destVertexLabel exists in graphData
+                    // If yes, the dest vertex contains edges that could the current grammar rule.
+                    // If not, the dest vertex doesn't contain any edges, so move on to next graphEdge.
+                    auto checkDestVertex = graphData.find(graphEdge.destVertexLabel);
+                    if(checkDestVertex != graphData.end()) {
+                        
+                        // STEP 5: Go through dest vertex's edges
+                        for(auto destVertexIt : checkDestVertex->second.graphEdges) {
+                            
+                            // STEP 6: Check if the edge's label is found in currGrammarRule
+                            // If yes, the grammar rule is satisfied!
+                            auto checkGrammarRule = currGrammarRule.find(destVertexIt.edgeLabel);
+                            if(checkGrammarRule != currGrammarRule.end()) {
+                                GraphEdge newGraphEdge;
+                                newGraphEdge.edgeLabel = checkGrammarRule->second;
+                                newGraphEdge.sourceVertexLabel = graphEdge.sourceVertexLabel;
+                                newGraphEdge.destVertexLabel = destVertexIt.destVertexLabel;
+
+                                // STEP 7: Check if edge already exists
+                                // If not, add to graphData
+                                if(!checkEdgeExists(graphIt.second, newGraphEdge)) {
+                                    auto graphDataVertex = graphData.find(graphIt.first);
+                                    graphDataVertex->second.graphEdges.push_back(newGraphEdge);
+
+                                    newEdgeAdded = true;
+                                    numTotalEdgesAdded++;
+                                }                           
+                            }
+
+                        }
+                    }
+
+                }
+            }
+
+        }
+
+
+
+        /*for(auto grammarIt : grammarData) {
             vector<graphEdge> newGraphData = graphData;
             vector<graphEdge> firstSymbolEdges;
             vector<graphEdge> secondSymbolEdges;
@@ -342,7 +422,7 @@ int main(int argc, char *argv[]) {
             }
 
             graphData = newGraphData;
-        }
+        }*/
         loopCount++;
     }
 
@@ -355,14 +435,24 @@ int main(int argc, char *argv[]) {
     outputFile.open("../output/output");
     string outputLine;
 
+    outputFile << "Number of Vertex: " << graphData.size() << "\n";
     outputFile << "Number of Edge Added: " << numTotalEdgesAdded << "\n";
-    outputFile << "Elapsed time: " << durationTime.count() << "s";
-    outputFile << "\n";
+    outputFile << "Elapsed time: " << durationTime.count() << "s\n";
     
     if(outputFile.is_open()) {
         outputFile << "Graph:\n";
-        for(graphEdge it : graphData) {
-            outputFile << it.sourceVertex << " " << it.destVertex << " " << it.edgeLabel << "\n";
+        for(auto graphIt : graphData) {
+            outputFile << graphIt.first << ": \n";
+            for(auto edgeIt : graphIt.second.graphEdges) {
+                outputFile << "  " << edgeIt.destVertexLabel << "  " << edgeIt.edgeLabel << "\n";
+            }
+        }
+        outputFile << "\nGrammar:\n";
+        for(auto grammarIt : grammarData) {
+            outputFile << grammarIt.first << ": \n";
+            for(auto grammarInfoIt : grammarIt.second) {
+                outputFile << "  " << grammarInfoIt.first << "  " << grammarInfoIt.second << "\n";
+            }
         }
     }
 
