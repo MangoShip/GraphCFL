@@ -191,6 +191,10 @@ int main(int argc, char *argv[]) {
 
     // Graph Data that stores all vertices and edges
     unordered_map<int, GraphVertex> graphData;
+
+    // Variable for holding original graphData 
+    int origNumVertex = 0;
+    int origNumEdge = 0;
     
     // Read through graph file then insert to graphData
     string inputLine;
@@ -220,6 +224,7 @@ int main(int argc, char *argv[]) {
             newGraphVertex.vertexLabel = vertexLabel;
             graphData[vertexLabel] = newGraphVertex;
             graphIt = graphData.find(vertexLabel);
+            origNumVertex++;
         }
 
         GraphEdge newGraphEdge;
@@ -234,6 +239,7 @@ int main(int argc, char *argv[]) {
         newGraphEdge.edgeLabel = edgeLabel;
 
         graphIt->second.graphEdges.push_back(newGraphEdge);
+        origNumEdge++;
     }
 
     // Grammar Data that stores all grammar rules
@@ -312,11 +318,11 @@ int main(int argc, char *argv[]) {
                 // If yes, this vertex could satisfy one of grammar rules.
                 // If not, move on to next graphEdge.
                 auto checkGrammarData = grammarData.find(graphEdge.edgeLabel);
-                if(checkGrammarData != grammarData.end()){
+                if(checkGrammarData != grammarData.end()) {
                     unordered_map<string, string> currGrammarRule = checkGrammarData->second;
 
                     // STEP 4: Check if graphEdges' destVertexLabel exists in graphData
-                    // If yes, the dest vertex contains edges that could the current grammar rule.
+                    // If yes, the dest vertex contains edges that could satisfy the current grammar rule.
                     // If not, the dest vertex doesn't contain any edges, so move on to next graphEdge.
                     auto checkDestVertex = graphData.find(graphEdge.destVertexLabel);
                     if(checkDestVertex != graphData.end()) {
@@ -333,10 +339,11 @@ int main(int argc, char *argv[]) {
                                 newGraphEdge.sourceVertexLabel = graphEdge.sourceVertexLabel;
                                 newGraphEdge.destVertexLabel = destVertexIt.destVertexLabel;
 
+                                auto graphDataVertex = graphData.find(graphIt.first);
+                                
                                 // STEP 7: Check if edge already exists
                                 // If not, add to graphData
-                                if(!checkEdgeExists(graphIt.second, newGraphEdge)) {
-                                    auto graphDataVertex = graphData.find(graphIt.first);
+                                if(!checkEdgeExists(graphDataVertex->second, newGraphEdge)) {
                                     graphDataVertex->second.graphEdges.push_back(newGraphEdge);
 
                                     newEdgeAdded = true;
@@ -435,8 +442,9 @@ int main(int argc, char *argv[]) {
     outputFile.open("../output/output");
     string outputLine;
 
-    outputFile << "Number of Vertex: " << graphData.size() << "\n";
-    outputFile << "Number of Edge Added: " << numTotalEdgesAdded << "\n";
+    outputFile << "Original Number of Vertices: " << origNumVertex << "\n";
+    outputFile << "Original Number of Edges: " << origNumEdge << "\n";
+    outputFile << "Number of Edges Added: " << numTotalEdgesAdded << "\n";
     outputFile << "Elapsed time: " << durationTime.count() << "s\n";
     
     if(outputFile.is_open()) {
